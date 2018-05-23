@@ -364,7 +364,7 @@ class DOMComponent {
 从 mountHost () 重构后的主要区别在于, 我们现在将 `this.node`  和 `this.renderedChildren`  与内部 DOM 组件实例相关联。
 我们还将使用它们在将来应用非破坏性更新。
 
-As a result, each internal instance, composite or host, now points to its child internal instances. To help visualize this, if a functional `<App>` component renders a `<Button>` class component, and `Button` class renders a `<div>`, the internal instance tree would look like this:
+因此, 每个内部实例 (复合实例或主机实例)（composite or host） 现在都指向内部的子实例。为帮助可视化, 如果功能 `<App>` 组件呈现 `<Button>`  类组件, 并且  `<Button>` 类呈现`<div>`, 则内部实例树将如下所显示:
 
 ```js
 [object CompositeComponent] {
@@ -382,36 +382,36 @@ As a result, each internal instance, composite or host, now points to its child 
 }
 ```
 
-In the DOM you would only see the `<div>`. However the internal instance tree contains both composite and host internal instances.
+在 DOM 中, 您只会看到`<div>` 。但是, 内部实例树同时包含复合和主机内部实例（composite and host internal instances）。
 
-The composite internal instances need to store:
+内部的复合实例需要存储下面的信息:
 
-* The current element.
-* The public instance if element type is a class.
-* The single rendered internal instance. It can be either a `DOMComponent` or a `CompositeComponent`.
+* 当前元素（The current element）.
+* 如果元素类型是类, 则将类实例化并存为公共实例（The public instance if element type is a class）.
+* 一个通过运行render()之后并传入工厂函数而得到的内部实例（renderedComponent）。它可以是一个`DOMComponent`或一个`CompositeComponent`。
 
-The host internal instances need to store:
+内部的主机实例需要存储下面的信息:
 
-* The current element.
-* The DOM node.
-* All the child internal instances. Each of them can be either a `DOMComponent` or a `CompositeComponent`.
+* 当前元素（The current element）.
+* DOM 节点（The DOM node）.
+* 所有的内部子实例，他们可以是 `DOMComponent` or a `CompositeComponent`。（All the child internal instances. Each of them can be either a `DOMComponent` or a `CompositeComponent`）.
 
-If you're struggling to imagine how an internal instance tree is structured in more complex applications, [React DevTools](https://github.com/facebook/react-devtools) can give you a close approximation, as it highlights host instances with grey, and composite instances with purple:
+如果你很难想象一个内部的实例树是如何在更复杂的应用中构建的， [React DevTools]((https://github.com/facebook/react-devtools))可以给出一个非常接近的近似，因为它突出显示了带有灰色的主机实例，以及用紫色表示的组合实例:
 
- <img src="../images/docs/implementation-notes-tree.png" width="500" style="max-width: 100%" alt="React DevTools tree" />
+ <img src="../images/implementation-notes-tree.png" width="500" style="max-width: 100%" alt="React DevTools tree" />
 
-To complete this refactoring, we will introduce a function that mounts a complete tree into a container node, just like `ReactDOM.render()`. It returns a public instance, also like `ReactDOM.render()`:
+为了完成这个重构，我们将引入一个函数，它将一个完整的树挂载到一个容器节点，就像`ReactDOM.render()`。它返回一个公共实例，也类似于 `ReactDOM.render()`:
 
 ```js
 function mountTree(element, containerNode) {
-  // Create the top-level internal instance
+  // 创建顶级内部实例
   var rootComponent = instantiateComponent(element);
 
-  // Mount the top-level component into the container
+  // 将顶级组件装载到容器中
   var node = rootComponent.mount();
   containerNode.appendChild(node);
 
-  // Return the public instance it provides
+  // 返回它所提供的公共实例
   var publicInstance = rootComponent.getPublicInstance();
   return publicInstance;
 }
@@ -420,9 +420,9 @@ var rootEl = document.getElementById('root');
 mountTree(<App />, rootEl);
 ```
 
-### Unmounting
+### 卸载(Unmounting)
 
-Now that we have internal instances that hold onto their children and the DOM nodes, we can implement unmounting. For a composite component, unmounting calls a lifecycle hook and recurses.
+现在，我们有了保存有它们的子节点和DOM节点的内部实例，我们可以实现卸载。对于一个复合组件（composite component），卸载将调用一个生命周期钩子然后递归进行。
 
 ```js
 class CompositeComponent {
@@ -445,7 +445,7 @@ class CompositeComponent {
 }
 ```
 
-For `DOMComponent`, unmounting tells each child to unmount:
+对于`DOMComponent`，卸载操作让每个孩子进行卸载：
 
 ```js
 class DOMComponent {
@@ -460,9 +460,9 @@ class DOMComponent {
 }
 ```
 
-In practice, unmounting DOM components also removes the event listeners and clears some caches, but we will skip those details.
+在实践中，卸载DOM组件也会删除事件侦听器并清除一些缓存，为了便于理解，我们暂时跳过这些细节。
 
-We can now add a new top-level function called `unmountTree(containerNode)` that is similar to `ReactDOM.unmountComponentAtNode()`:
+现在我们可以添加一个顶级函数，叫作`unmountTree(containerNode)`，它与`ReactDOM.unmountComponentAtNode()`类似:
 
 ```js
 function unmountTree(containerNode) {
@@ -477,7 +477,8 @@ function unmountTree(containerNode) {
 }
 ```
 
-In order for this to work, we need to read an internal root instance from a DOM node. We will modify `mountTree()` to add the `_internalInstance` property to the root DOM node. We will also teach `mountTree()` to destroy any existing tree so it can be called multiple times:
+为了使其工作，我们需要从一个DOM节点读取一个内部根实例。我们将修改 `mountTree()`  以将 `_internalInstance` 属性添加到DOM 根节点。
+我们也将教`mountTree()`去销毁任何现存树，以便将来它可以被多次调用：
 
 ```js
 function mountTree(element, containerNode) {
@@ -502,21 +503,23 @@ function mountTree(element, containerNode) {
 }
 ```
 
-Now, running `unmountTree()`, or running `mountTree()` repeatedly, removes the old tree and runs the `componentWillUnmount()` lifecycle hook on components.
+现在，可以反复运行`unmountTree()`或者 `mountTree()`，清除旧树并且在组件上运行 `componentWillUnmount()` 生命周期钩子。
 
-### Updating
+### 更新（Updating）
 
-In the previous section, we implemented unmounting. However React wouldn't be very useful if each prop change unmounted and mounted the whole tree. The goal of the reconciler is to reuse existing instances where possible to preserve the DOM and the state:
+在上一节中，我们实现了卸载。然而，如果每个组件的prop的变动都要卸载并挂载整个树，这是不可接受的。幸好我们设计了协调器。
+协调器（reconciler）的目标是重用已存在的实例，以便保留DOM和状态:
 
 ```js
 var rootEl = document.getElementById('root');
 
 mountTree(<App />, rootEl);
-// Should reuse the existing DOM:
+// 应该重用现有的DOM:
 mountTree(<App />, rootEl);
 ```
 
-We will extend our internal instance contract with one more method. In addition to `mount()` and `unmount()`, both `DOMComponent` and `CompositeComponent` will implement a new method called `receive(nextElement)`:
+我们将用一种方法扩展我们的内部实例。
+除了 `mount()`和 `unmount()`。`DOMComponent`和 `CompositeComponent`将实现一个新的方法，它叫作 `receive(nextElement)`:
 
 ```js
 class CompositeComponent {
@@ -536,15 +539,15 @@ class DOMComponent {
 }
 ```
 
-Its job is to do whatever is necessary to bring the component (and any of its children) up to date with the description provided by the `nextElement`.
+它的工作是做任何必要的工作，以使组件(及其任何子节点) 能够根据 `nextElement` 提供的信息保持信息为最新状态。
 
-This is the part that is often described as "virtual DOM diffing" although what really happens is that we walk the internal tree recursively and let each internal instance receive an update.
+这是经常被描述为"virtual DOM diffing"的部分，尽管真正发生的是我们递归地遍历内部树，并让每个内部实例接收到更新指令。
 
-### Updating Composite Components
+### 更新复合组件（Updating Composite Components）
 
-When a composite component receives a new element, we run the `componentWillUpdate()` lifecycle hook.
+当一个复合组件接收到一个新元素（element）时，我们运行componentWillUpdate()生命周期钩子。
 
-Then we re-render the component with the new props, and get the next rendered element:
+然后，我们使用新的props重新render组件，并获得下一个render的元素（rendered element）：
 
 ```js
 class CompositeComponent {
@@ -582,15 +585,15 @@ class CompositeComponent {
     // ...
 ```
 
-Next, we can look at the rendered element's `type`. If the `type` has not changed since the last render, the component below can also be updated in place.
+下一步，我们可以看一下渲染元素的type。如果自从上次渲染，type 没有被改变，组件接下来可以被适当更新。
 
-For example, if it returned `<Button color="red" />` the first time, and `<Button color="blue" />` the second time, we can just tell the corresponding internal instance to `receive()` the next element:
+例如，如果它第一次返回 `<Button color="red" />`，并且第二次返回 `<Button color="blue" />`，我们可以告诉内部实例去 `receive()` 下一个元素：
 
 ```js
     // ...
 
-    // If the rendered element type has not changed,
-    // reuse the existing component instance and exit.
+    // 如果被渲染元素类型没有被改变,
+    // 重用现有的组件实例.
     if (prevRenderedElement.type === nextRenderedElement.type) {
       prevRenderedComponent.receive(nextRenderedElement);
       return;
@@ -599,9 +602,10 @@ For example, if it returned `<Button color="red" />` the first time, and `<Butto
     // ...
 ```
 
-However, if the next rendered element has a different `type` than the previously rendered element, we can't update the internal instance. A `<button>` can't "become" an `<input>`.
+但是，如果下一个被渲染元素和前一个相比有一个不同的`type` ，我们不能更新内部实例。因为一个`<button>` 不“能变”为一个`<input>`.
 
-Instead, we have to unmount the existing internal instance and mount the new one corresponding to the rendered element type. For example, this is what happens when a component that previously rendered a `<button />` renders an `<input />`:
+相反，我们必须卸载现有的内部实例并挂载对应于渲染的元素类型的新实例。
+例如，这就是当一个之前被渲染的元素`<button />`之后又被渲染成一个  `<input />` 的过程:
 
 ```js
     // ...
@@ -627,20 +631,21 @@ Instead, we have to unmount the existing internal instance and mount the new one
   }
 }
 ```
+总而言之，当一个复合组件（composite component）接收到一个新元素时，它可能会将更新委托给其渲染的内部实例（（rendered internal instance），
+或者卸载它，并在其位置上挂一个新元素。
 
-To sum this up, when a composite component receives a new element, it may either delegate the update to its rendered internal instance, or unmount it and mount a new one in its place.
+另一种情况下，组件将重新挂载而不是接收一个元素，并且这发生在元素的`key`变化时。本文档中，我们不讨论key 处理，因为它将使原本复杂的教程更加复杂。
 
-There is another condition under which a component will re-mount rather than receive an element, and that is when the element's `key` has changed. We don't discuss `key` handling in this document because it adds more complexity to an already complex tutorial.
-
-Note that we needed to add a method called `getHostNode()` to the internal instance contract so that it's possible to locate the platform-specific node and replace it during the update. Its implementation is straightforward for both classes:
+注意，我们需要添加一个叫作`getHostNode()`的新方法到内部实例（internal instance），以便可以定位特定于平台的节点并在更新期间替换它。
+它的实现对两个类都很简单：
 
 ```js
 class CompositeComponent {
   // ...
 
   getHostNode() {
-    // Ask the rendered component to provide it.
-    // This will recursively drill down any composites.
+    // 请求渲染的组件提供它（Ask the rendered component to provide it）.
+    // 这将递归地向下钻取任何组合(This will recursively drill down any composites).
     return this.renderedComponent.getHostNode();
   }
 }
@@ -654,9 +659,9 @@ class DOMComponent {
 }
 ```
 
-### Updating Host Components
+### 更新主机组件(Updating Host Components)
 
-Host component implementations, such as `DOMComponent`, update differently. When they receive an element, they need to update the underlying platform-specific view. In case of React DOM, this means updating the DOM attributes:
+主机组件实现(例如DOMComponent), 是以不同方式更新.当它们接收到一个元素时，它们需要更新底层特定于平台的视图。在 React DOM 中，这意味着更新 DOM 属性：
 
 ```js
 class DOMComponent {
@@ -685,7 +690,10 @@ class DOMComponent {
     // ...
 ```
 
-Then, host components need to update their children. Unlike composite components, they might contain more than a single child.
+接下来，主机组件需要更新它们的子元素。与复合组件不同的是，它们可能包含多个子元素。
+
+在这个简化的例子中，我们使用一个内部实例的数组并对其进行迭代，或者更新或替换内部实例，这取决于接收到的type是否与之前的type匹配。
+真正的调解器同时在帐户中获取元素的key并且追踪变动，除了插入与删除，但是我们忽略这一逻辑。
 
 In this simplified example, we use an array of internal instances and iterate over it, either updating or replacing the internal instances depending on whether the received `type` matches their previous `type`. The real reconciler also takes element's `key` in the account and track moves in addition to insertions and deletions, but we will omit this logic.
 
