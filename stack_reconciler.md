@@ -600,9 +600,10 @@ class CompositeComponent {
     }
 
     // ...
+
 ```
 
-但是，如果下一个被渲染元素和前一个相比有一个不同的`type` ，我们不能更新内部实例。因为一个`<button>` 不“能变”为一个`<input>`.
+但是，如果下一个被渲染元素和前一个相比有一个不同的`type` ，我们不能更新内部实例。因为一个 <button> 不“能变”为一个 <input>.
 
 相反，我们必须卸载现有的内部实例并挂载对应于渲染的元素类型的新实例。
 例如，这就是当一个之前被渲染的元素`<button />`之后又被渲染成一个  `<input />` 的过程:
@@ -692,17 +693,15 @@ class DOMComponent {
 
 接下来，主机组件需要更新它们的子元素。与复合组件不同的是，它们可能包含多个子元素。
 
-在这个简化的例子中，我们使用一个内部实例的数组并对其进行迭代，或者更新或替换内部实例，这取决于接收到的type是否与之前的type匹配。
-真正的调解器同时在帐户中获取元素的key并且追踪变动，除了插入与删除，但是我们忽略这一逻辑。
+在这个简化的例子中，我们使用一个内部实例的数组并对其进行迭代，是更新或替换内部实例，这取决于接收到的type是否与之前的type匹配。
+真正的调解器（reconciler）同时在帐户中获取元素的key并且追踪变动，除了插入与删除，但是我们现在先忽略这一逻辑。
 
-In this simplified example, we use an array of internal instances and iterate over it, either updating or replacing the internal instances depending on whether the received `type` matches their previous `type`. The real reconciler also takes element's `key` in the account and track moves in addition to insertions and deletions, but we will omit this logic.
-
-We collect DOM operations on children in a list so we can execute them in batch:
+我们在列表中收集DOM操作，这样我们就可以批量地执行它们。
 
 ```js
     // ...
 
-    // These are arrays of React elements:
+    // // 这些是React元素（element）数组:
     var prevChildren = prevProps.children || [];
     if (!Array.isArray(prevChildren)) {
       prevChildren = [prevChildren];
@@ -711,41 +710,39 @@ We collect DOM operations on children in a list so we can execute them in batch:
     if (!Array.isArray(nextChildren)) {
       nextChildren = [nextChildren];
     }
-    // These are arrays of internal instances:
+    // 这些是内部实例(internal instances)数组:
     var prevRenderedChildren = this.renderedChildren;
     var nextRenderedChildren = [];
 
-    // As we iterate over children, we will add operations to the array.
+    // 当我们遍历children时，我们将向数组中添加操作。
     var operationQueue = [];
 
-    // Note: the section below is extremely simplified!
-    // It doesn't handle reorders, children with holes, or keys.
-    // It only exists to illustrate the overall flow, not the specifics.
+    // 注意：以下章节大大减化！
+    // 它不处理reorders，空children，或者keys。
+    // 它只是用来解释整个流程，而不是具体的细节。
 
     for (var i = 0; i < nextChildren.length; i++) {
-      // Try to get an existing internal instance for this child
+      // 尝试为这个子级获取现存内部实例。
       var prevChild = prevRenderedChildren[i];
 
-      // If there is no internal instance under this index,
-      // a child has been appended to the end. Create a new
-      // internal instance, mount it, and use its node.
+      // 如果在这个索引下没有内部实例,那说明是一个child被添加了末尾。
+      // 这时应该去创建一个内部实例，挂载它，并使用它的节点。
       if (!prevChild) {
         var nextChild = instantiateComponent(nextChildren[i]);
         var node = nextChild.mount();
 
-        // Record that we need to append a node
+        // 记录一下我们将来需要append一个节点（node）
         operationQueue.push({type: 'ADD', node});
         nextRenderedChildren.push(nextChild);
         continue;
       }
 
-      // We can only update the instance if its element's type matches.
-      // For example, <Button size="small" /> can be updated to
-      // <Button size="large" /> but not to an <App />.
+      // 如果它的元素类型匹配，我们只需要更新该实例即可  
+      // 例如, <Button size="small" /> 可以更新为
+      // <Button size="large" /> 但是不能被更新为 <App />.
       var canUpdate = prevChildren[i].type === nextChildren[i].type;
 
-      // If we can't update an existing instance, we have to unmount it
-      // and mount a new one instead of it.
+      // 如果我们不能更新现有的实例，我们就必须卸载它。然后装一个新的替代它。
       if (!canUpdate) {
         var prevNode = prevChild.getHostNode();
         prevChild.unmount();
@@ -753,25 +750,25 @@ We collect DOM operations on children in a list so we can execute them in batch:
         var nextChild = instantiateComponent(nextChildren[i]);
         var nextNode = nextChild.mount();
 
-        // Record that we need to swap the nodes
+        // 记录一下我们将来需要替换这些nodes
         operationQueue.push({type: 'REPLACE', prevNode, nextNode});
         nextRenderedChildren.push(nextChild);
         continue;
       }
 
-      // If we can update an existing internal instance,
-      // just let it receive the next element and handle its own update.
+      // 如果我们可以更新现存的内部实例（internal instance），
+      // 我们仅仅把下一个元素传入其receive即可，让其receive函数处理它的更新即可
       prevChild.receive(nextChildren[i]);
       nextRenderedChildren.push(prevChild);
     }
 
-    // Finally, unmount any children that don't exist:
+    // 最后，卸载（unmount）哪些不存在的children
     for (var j = nextChildren.length; j < prevChildren.length; j++) {
       var prevChild = prevRenderedChildren[j];
       var node = prevChild.getHostNode();
       prevChild.unmount();
 
-      // Record that we need to remove the node
+      // 记录一下我们将来需要remove这些node
       operationQueue.push({type: 'REMOVE', node});
     }
 
@@ -781,12 +778,12 @@ We collect DOM operations on children in a list so we can execute them in batch:
     // ...
 ```
 
-As the last step, we execute the DOM operations. Again, the real reconciler code is more complex because it also handles moves:
+作为最后一步，我们执行DOM操作。还是那句话，真正的协调器（reconciler）代码更复杂，因为它还能处理移动：
 
 ```js
     // ...
 
-    // Process the operation queue.
+    // 处理队列里的operation。
     while (operationQueue.length > 0) {
       var operation = operationQueue.shift();
       switch (operation.type) {
@@ -805,11 +802,12 @@ As the last step, we execute the DOM operations. Again, the real reconciler code
 }
 ```
 
-And that is it for updating host components.
+这是用来更新主机组件（host components）的。
 
-### Top-Level Updates
+### 顶级更新（Top-Level Updates）
 
-Now that both `CompositeComponent` and `DOMComponent` implement the `receive(nextElement)` method, we can change the top-level `mountTree()` function to use it when the element `type` is the same as it was the last time:
+现在 CompositeComponent 与 DOMComponent 都实现了 receive(nextElement) 方法, 
+我们现在可以改变顶级 mountTree() 函数了，当元素（element）的`type`相同时，我们可以使用receive了。
 
 ```js
 function mountTree(element, containerNode) {
@@ -819,13 +817,13 @@ function mountTree(element, containerNode) {
     var prevRootComponent = prevNode._internalInstance;
     var prevElement = prevRootComponent.currentElement;
 
-    // If we can, reuse the existing root component
+    // 如果可以，使用现存根组件
     if (prevElement.type === element.type) {
       prevRootComponent.receive(element);
       return;
     }
 
-    // Otherwise, unmount the existing tree
+    // 否则，卸载现存树
     unmountTree(containerNode);
   }
 
@@ -834,61 +832,81 @@ function mountTree(element, containerNode) {
 }
 ```
 
-Now calling `mountTree()` two times with the same type isn't destructive:
+现在调用 mountTree()两次，同样的类型不会先卸载再装载了：
 
 ```js
 var rootEl = document.getElementById('root');
 
 mountTree(<App />, rootEl);
-// Reuses the existing DOM:
+// 复用现存 DOM:
 mountTree(<App />, rootEl);
 ```
 
 These are the basics of how React works internally.
 
-### What We Left Out
+### 我们遗漏的还有什么？
 
-This document is simplified compared to the real codebase. There are a few important aspects we didn't address:
+与真正的代码库相比，这个文档被简化了。有一些重要的方面我们没有提到：
 
-* Components can render `null`, and the reconciler can handle "empty slots" in arrays and rendered output.
+* 组件可以渲染null，而且，协调器（reconciler）可以处理数组中的“空槽（empty slots）”并显示输出。
 
-* The reconciler also reads `key` from the elements, and uses it to establish which internal instance corresponds to which element in an array. A bulk of complexity in the actual React implementation is related to that.
+* 协调器（reconciler）可以从元素中读取 key ，并且用它来建立在一个数组中内部实例与元素的对应关系。实际的 React 实现的大部分复杂性与此相关。
 
-* In addition to composite and host internal instance classes, there are also classes for "text" and "empty" components. They represent text nodes and the "empty slots" you get by rendering `null`.
+* 除了复合和主机内部实例类之外，还存在用于“文本”和“空”组件的类。它们表示文本节点和通过渲染 null得到的“空槽”。
 
-* Renderers use [injection](/docs/codebase-overview.html#dynamic-injection) to pass the host internal class to the reconciler. For example, React DOM tells the reconciler to use `ReactDOMComponent` as the host internal instance implementation.
+* 渲染器（Renderers）使用[injection](https://reactjs.org/docs/codebase-overview.html#dynamic-injection)
+将主机内部类传递给协调器(reconciler)。例如，React DOM 告诉协调器使用 `ReactDOMComponent` 作为主机内部实现实例。
 
-* The logic for updating the list of children is extracted into a mixin called `ReactMultiChild` which is used by the host internal instance class implementations both in React DOM and React Native.
+* 更新子列表的逻辑被提取到一个名为 `ReactMultiChild` 的mixin中，它被主机内部实例类实现在 React DOM和 React Native时都使用。
 
-* The reconciler also implements support for `setState()` in composite components. Multiple updates inside event handlers get batched into a single update.
+* 协调器也实现了在复合组件（composite components）中支持setState()。事件处理程序内部的多个更新将被打包成一个单一的更新。
 
-* The reconciler also takes care of attaching and detaching refs to composite components and host nodes.
+* 协调器（reconciler）还负责复合组件和主机节点的refs。
 
-* Lifecycle hooks that are called after the DOM is ready, such as `componentDidMount()` and `componentDidUpdate()`, get collected into "callback queues" and are executed in a single batch.
+* 在DOM准备好之后调用的生命周期钩子，例如 componentDidMount() 和 componentDidUpdate()，收集到“回调队列”，并在单个批处理中执行。
 
-* React puts information about the current update into an internal object called "transaction". Transactions are useful for keeping track of the queue of pending lifecycle hooks, the current DOM nesting for the warnings, and anything else that is "global" to a specific update. Transactions also ensure React "cleans everything up" after updates. For example, the transaction class provided by React DOM restores the input selection after any update.
+* React 将当前更新的信息放入一个名为“事务”的内部对象中。事务对于跟踪挂起的生命周期钩子的队列、
+为了warning而嵌套的当前DOM（the current DOM nesting for the warnings）以及任何“全局”到特定的更新都是有用的。
+事务还可以确保在更新后“清除所有内容”。例如，由 React DOM提供的事务类在任何更新之后恢复input的选中与否。
 
-### Jumping into the Code
+### 直接查看代码（Jumping into the Code）
 
-* [`ReactMount`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/dom/client/ReactMount.js) is where the code like `mountTree()` and `unmountTree()` from this tutorial lives. It takes care of mounting and unmounting top-level components. [`ReactNativeMount`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/native/ReactNativeMount.js) is its React Native analog.
-* [`ReactDOMComponent`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/dom/shared/ReactDOMComponent.js) is the equivalent of `DOMComponent` in this tutorial. It implements the host component class for React DOM renderer. [`ReactNativeBaseComponent`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/native/ReactNativeBaseComponent.js) is its React Native analog.
-* [`ReactCompositeComponent`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/shared/stack/reconciler/ReactCompositeComponent.js) is the equivalent of `CompositeComponent` in this tutorial. It handles calling user-defined components and maintaining their state.
-* [`instantiateReactComponent`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/shared/stack/reconciler/instantiateReactComponent.js) contains the switch that picks the right internal instance class to construct for an element. It is equivalent to `instantiateComponent()` in this tutorial.
+* 在 [`ReactMount`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/dom/client/ReactMount.js) 中可以查看此教程中类似 `mountTree()` 和 `unmountTree()` 的代码.
+它负责装载(mounting)和卸载（unmounting）顶级组件。
+[`ReactNativeMount`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/native/ReactNativeMount.js) is its React Native analog.
 
-* [`ReactReconciler`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/shared/stack/reconciler/ReactReconciler.js) is a wrapper with `mountComponent()`, `receiveComponent()`, and `unmountComponent()` methods. It calls the underlying implementations on the internal instances, but also includes some code around them that is shared by all internal instance implementations.
+* [`ReactDOMComponent`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/dom/shared/ReactDOMComponent.js) 
+在教程中与DOMComponent等同. 它实现了 React DOM渲染器（renderer）的主机组件类（host component class。
+[`ReactNativeBaseComponent`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/native/ReactNativeBaseComponent.js) is its React Native analog.
 
-* [`ReactChildReconciler`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/shared/stack/reconciler/ReactChildReconciler.js) implements the logic for mounting, updating, and unmounting children according to the `key` of their elements.
+* [`ReactCompositeComponent`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/shared/stack/reconciler/ReactCompositeComponent.js) 
+在教程中与 `CompositeComponent` 等同. 它处理调用用户定义的组件并维护它们的状态。
 
-* [`ReactMultiChild`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/shared/stack/reconciler/ReactMultiChild.js) implements processing the operation queue for child insertions, deletions, and moves independently of the renderer.
+* [`instantiateReactComponent`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/shared/stack/reconciler/instantiateReactComponent.js)
+ 包含选择正确的内部实例类并运行element的构造函数。在本教程中，它与`instantiateComponent()`等同。
 
-* `mount()`, `receive()`, and `unmount()` are really called `mountComponent()`, `receiveComponent()`, and `unmountComponent()` in React codebase for legacy reasons, but they receive elements.
+* [`ReactReconciler`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/shared/stack/reconciler/ReactReconciler.js) 
+是一个具有 `mountComponent()`, `receiveComponent()`, 和 `unmountComponent()` 方法的封装.
+它调用内部实例的底层实现，但也包含了所有内部实例实现共享的代码。
 
-* Properties on the internal instances start with an underscore, e.g. `_currentElement`. They are considered to be read-only public fields throughout the codebase.
+* [`ReactChildReconciler`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/shared/stack/reconciler/ReactChildReconciler.js) 
+根据元素的 `key` ，实现了mounting、updating和unmounting的逻辑.
 
-### Future Directions
+* [`ReactMultiChild`](https://github.com/facebook/react/blob/83381c1673d14cd16cf747e34c945291e5518a86/src/renderers/shared/stack/reconciler/ReactMultiChild.js) 
+独立于渲染器的操作队列，实现了处理child的插入、删除和移动
 
-Stack reconciler has inherent limitations such as being synchronous and unable to interrupt the work or split it in chunks. There is a work in progress on the [new Fiber reconciler](/docs/codebase-overview.html#fiber-reconciler) with a [completely different architecture](https://github.com/acdlite/react-fiber-architecture). In the future, we intend to replace stack reconciler with it, but at the moment it is far from feature parity.
+* 由于遗留的原因 `mount()`, `receive()`, and `unmount()` 被称作 `mountComponent()`, 
+`receiveComponent()`, and `unmountComponent()` 但是他们却接收elements
 
-### Next Steps
+* 内部实例的属性以一个下划线开始, 例如， `_currentElement`. 在整个代码库中，它们被认为是只读的公共字段。
 
-Read the [next section](/docs/design-principles.html) to learn about the guiding principles we use for React development.
+### 未来方向（Future Directions）
+
+堆栈协调器具有固有的局限性, 如同步和无法中断工作或分割成区块。
+我们正在实现一个新的协调器[Fiber reconciler](https://reactjs.org/docs/codebase-overview.html#fiber-reconciler), 
+你可以在这里看它的[具体思路](https://github.com/acdlite/react-fiber-architecture)
+将来我们会用fiber协调器代替stack协调器（译者注：其实现在react16已经发布，在react16中fiber算法已经取代了stack算法）
+
+### 下一步（Next Steps）
+
+阅读[next section](https://reactjs.org/docs/design-principles.html)以了解有关协调器的当前实现的详细信息。
